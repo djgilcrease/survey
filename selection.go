@@ -16,3 +16,12 @@ func (o *Option) String() string {
 
 // Options alias for []*Option
 type Options = []*Option
+
+func OptionsValues(o Options) (values []interface{}) {
+	values = make([]interface{}, len(o))
+	for i, v := range o {
+		values[i] = v.Value
+	}
+
+	return
+}

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"gopkg.in/AlecAivazis/survey.v1"
+	"github.com/djgilcrease/survey"
 	"net/http"
 	"time"
 	"io/ioutil"
@@ -28,10 +28,16 @@ type users = []*user
 
 // the questions to ask
 var userPrompt = survey.NewSingleSelect().SetMessage("Select User:")
+var usersPrompt = survey.NewMultiSelect().SetMessage("Select Users:")
 var simpleQs = []*survey.Question{
 	{
 		Name: "user",
 		Prompt: userPrompt,
+		Validate: survey.Required,
+	},
+	{
+		Name: "users",
+		Prompt: usersPrompt,
 		Validate: survey.Required,
 	},
 }
@@ -62,14 +68,17 @@ func init() {
 
 	for _, _user := range us {
 		userPrompt.AddOption(_user.Username, _user, false)
+		usersPrompt.AddOption(_user.Username, _user, false)
 	}
 
 }
 
 func main() {
 	answers := struct {
-		User *survey.Option
+		User  *user
+		Users users
 	}{}
+
 
 	// ask the question
 	err := survey.Ask(simpleQs, &answers)
@@ -79,6 +88,7 @@ func main() {
 		return
 	}
 	// print the answers
-	_user := answers.User.Value.(*user)
-	fmt.Printf("%s has the username %s and thier address is %+v\r\n", _user.Name, _user.Username, _user.Address)
+	fmt.Printf("%s has the username %s and thier address is %+v\r\n", answers.User.Name, answers.User.Username, answers.User.Address)
+	fmt.Printf("Selected %d Users\r\n", len(answers.Users))
+	fmt.Printf("%s has the username %s and thier address is %+v\r\n", answers.Users[0].Name, answers.Users[0].Username, answers.Users[0].Address)
 }

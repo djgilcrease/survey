@@ -126,7 +126,15 @@ func Ask(qs []*Question, response interface{}) error {
 		}
 
 		// add it to the map
-		err = core.WriteAnswer(response, q.Name, ans)
+		switch ans.(type) {
+		case *Option:
+			err = core.WriteAnswer(response, q.Name, ans.(*Option).Value)
+		case Options:
+			err = core.WriteAnswer(response, q.Name, OptionsValues(ans.(Options)))
+		default:
+			err = core.WriteAnswer(response, q.Name, ans)
+		}
+
 		// if something went wrong
 		if err != nil {
 			return err

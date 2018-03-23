@@ -135,6 +135,10 @@ func copy(t reflect.Value, v reflect.Value) (err error) {
 		}
 	}()
 
+	if v.Kind() == reflect.Interface {
+		v = reflect.Indirect(v).Elem()
+	}
+
 	// if we are copying from a string result to something else
 	if v.Kind() == reflect.String && v.Type() != t.Type() {
 		var castVal interface{}
