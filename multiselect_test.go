@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/AlecAivazis/survey.v1/core"
+	"github.com/djgilcrease/survey/core"
 	"gopkg.in/AlecAivazis/survey.v1/terminal"
 )
 
@@ -40,7 +40,7 @@ func TestMultiSelectRender(t *testing.T) {
 			prompt,
 			MultiSelectTemplateData{
 				SelectedIndex: 2,
-				PageEntries:   prompt.Options,
+				PageEntries:   prompt.options,
 				Checked:       map[string]bool{"bar": true, "buz": true},
 			},
 			`? Pick your words:  [Use arrows to move, type to filter]
@@ -54,7 +54,7 @@ func TestMultiSelectRender(t *testing.T) {
 			"Test MultiSelect answer output",
 			prompt,
 			MultiSelectTemplateData{
-				Answer:     append(make(Options, 0), prompt.Options[0], prompt.Options[3]),
+				Answer:     append(make(Options, 0), prompt.options[0], prompt.options[3]),
 				ShowAnswer: true,
 			},
 			"? Pick your words: foo, buz\n",
@@ -64,7 +64,7 @@ func TestMultiSelectRender(t *testing.T) {
 			helpfulPrompt,
 			MultiSelectTemplateData{
 				SelectedIndex: 2,
-				PageEntries:   prompt.Options,
+				PageEntries:   prompt.options,
 				Checked:       map[string]bool{"bar": true, "buz": true},
 			},
 			`? Pick your words:  [Use arrows to move, type to filter, ? for more help]
@@ -79,7 +79,7 @@ func TestMultiSelectRender(t *testing.T) {
 			helpfulPrompt,
 			MultiSelectTemplateData{
 				SelectedIndex: 2,
-				PageEntries:   prompt.Options,
+				PageEntries:   prompt.options,
 				Checked:       map[string]bool{"bar": true, "buz": true},
 				ShowHelp:      true,
 			},
@@ -98,9 +98,9 @@ func TestMultiSelectRender(t *testing.T) {
 
 	for _, test := range tests {
 		outputBuffer.Reset()
-		test.data.MultiSelect = *test.prompt
+		test.data.MultiSelect = test.prompt
 		err := test.prompt.Render(
-			MultiSelectQuestionTemplate,
+			test.prompt.tmpl,
 			test.data,
 		)
 		assert.Nil(t, err, test.title)
@@ -139,7 +139,7 @@ func TestMultiSelectInterfaceValues(t *testing.T) {
 			prompt,
 			MultiSelectTemplateData{
 				SelectedIndex: 2,
-				PageEntries:   prompt.Options,
+				PageEntries:   prompt.options,
 				Checked:       map[string]bool{"bar": true, "buz": true},
 			},
 			`? Pick your words:  [Use arrows to move, type to filter]
@@ -153,7 +153,7 @@ func TestMultiSelectInterfaceValues(t *testing.T) {
 			"Test MultiSelect answer output",
 			prompt,
 			MultiSelectTemplateData{
-				Answer:     append(make(Options, 0), prompt.Options[0], prompt.Options[3]),
+				Answer:     append(make(Options, 0), prompt.options[0], prompt.options[3]),
 				ShowAnswer: true,
 			},
 			"? Pick your words: foo, buz\n",
@@ -163,7 +163,7 @@ func TestMultiSelectInterfaceValues(t *testing.T) {
 			helpfulPrompt,
 			MultiSelectTemplateData{
 				SelectedIndex: 2,
-				PageEntries:   prompt.Options,
+				PageEntries:   prompt.options,
 				Checked:       map[string]bool{"bar": true, "buz": true},
 			},
 			`? Pick your words:  [Use arrows to move, type to filter, ? for more help]
@@ -178,7 +178,7 @@ func TestMultiSelectInterfaceValues(t *testing.T) {
 			helpfulPrompt,
 			MultiSelectTemplateData{
 				SelectedIndex: 2,
-				PageEntries:   prompt.Options,
+				PageEntries:   prompt.options,
 				Checked:       map[string]bool{"bar": true, "buz": true},
 				ShowHelp:      true,
 			},
@@ -197,9 +197,9 @@ func TestMultiSelectInterfaceValues(t *testing.T) {
 
 	for _, test := range tests {
 		outputBuffer.Reset()
-		test.data.MultiSelect = *test.prompt
+		test.data.MultiSelect = test.prompt
 		err := test.prompt.Render(
-			MultiSelectQuestionTemplate,
+			test.prompt.tmpl,
 			test.data,
 		)
 		assert.Nil(t, err, test.title)

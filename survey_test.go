@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"gopkg.in/AlecAivazis/survey.v1/core"
+	"github.com/djgilcrease/survey/core"
 )
 
 func init() {

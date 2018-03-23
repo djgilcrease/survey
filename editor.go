@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"runtime"
 
-	"gopkg.in/AlecAivazis/survey.v1/core"
+	"github.com/djgilcrease/survey/core"
 	"gopkg.in/AlecAivazis/survey.v1/terminal"
 )
 

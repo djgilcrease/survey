@@ -3,9 +3,29 @@ package survey
 import (
 	"errors"
 	"os"
-	"gopkg.in/AlecAivazis/survey.v1/core"
+	"github.com/djgilcrease/survey/core"
 	"gopkg.in/AlecAivazis/survey.v1/terminal"
 )
+
+var DefaultMultiSelectQuestionTemplate = `
+{{- if .ShowHelp }}{{- color "cyan"}}{{ HelpIcon }} {{ .DisplayHelp }}{{color "reset"}}{{"\n"}}{{end}}
+{{- color "green+hb"}}{{ QuestionIcon }} {{color "reset"}}
+{{- color "default+hb"}}{{ .DisplayMessage }}{{ .DisplayFilterMessage }}{{color "reset"}}
+{{- if .ShowAnswer}} {{color "cyan"}} 
+	{{- range $ix, $answer := .Answer}}
+		{{- if ne $ix 0 }}{{- ", "}}{{- end}}
+		{{- $answer.Display }}
+	{{- end}}{{- color "reset"}}{{- "\n"}}
+{{- else }}
+  	{{- "  "}}{{- color "cyan"}}[Use arrows to move, type to filter{{- if and .DisplayHelp (not .ShowHelp)}}, {{ HelpInputRune }} for more help{{end}}]{{color "reset"}}
+  	{{- "\n"}}
+  	{{- range $ix, $option := .PageEntries}}
+    	{{- if eq $ix $.SelectedIndex}}{{color "cyan"}}{{ SelectFocusIcon }}{{color "reset"}}{{else}} {{end}}
+    	{{- if index $.Checked $option.Display}}{{color "green"}} {{ MarkedOptionIcon }} {{else}}{{color "default+hb"}} {{ UnmarkedOptionIcon }} {{end}}
+    	{{- color "reset"}}
+    	{{- " "}}{{$option.Display}}{{"\n"}}
+  	{{- end}}
+{{- end}}`
 
 /*
 MultiSelect is a prompt that presents a list of various options to the user
@@ -24,8 +44,9 @@ for them to select using the arrow keys and enter. Response type is a slice of s
 */
 type MultiSelect struct {
 	*Select
-	Default       Options
+	defaultValue       Options
 	checked       map[string]bool
+	tmpl string
 }
 
 /*
@@ -34,9 +55,35 @@ NewMultiSelect is a shortcut method to get a MultiSelect prompt
 func NewMultiSelect() *MultiSelect {
 	return &MultiSelect{
 		Select: NewSingleSelect(),
-		Default: make(Options, 0),
+		defaultValue: make(Options, 0),
+		tmpl: DefaultMultiSelectQuestionTemplate,
 	}
 }
+
+/*
+AddStringOption is a method to add an option to the selection and specify if it is the default value ot not
+This returns a Selection interface to allow chaining of these method calls
+
+	days := make(survey.Options, 0)
+	prompt := survey.NewMultiSelect().SetMessage("What days do you prefer:").
+			AddStringOption("Sunday", false).
+			AddStringOption("Monday", false).
+			AddStringOption("Tuesday", false).
+			AddStringOption("Wednesday", false).
+			AddStringOption("Thursday", false).
+			AddStringOption("Friday", false).
+			AddStringOption("Saturday", false)
+	survey.AskOne(prompt, &days, nil)
+ */
+func (s *MultiSelect) AddStringOption(display string, defaultOption bool) Selection {
+	opt := &Option{display, display}
+	s.options = append(s.options, opt)
+	if defaultOption {
+		s.defaultValue = append(s.defaultValue, opt)
+	}
+	return s
+}
+
 
 /*
 AddOption is a method to add an option to the selection and specify if it is the default value ot not
@@ -59,21 +106,37 @@ func (s *MultiSelect) AddOption(display string, value interface{}, defaultOption
 	}
 
 	opt := &Option{display, value}
-	s.Options = append(s.Options, opt)
+	s.options = append(s.options, opt)
 	if defaultOption {
-		s.Default = append(s.Default, opt)
+		s.defaultValue = append(s.defaultValue, opt)
 	}
 	return s
 }
 
+/*
+SetMessage is a method to set the prompt message for a selection
+This returns a Selection interface to allow chaining of these method calls
+ */
+func (s *MultiSelect) SetTemplate(tmpl string) Selection {
+	s.tmpl = tmpl
+	return s
+}
 
 /*
 SetMessage is a method to set the prompt message for a selection
 This returns a Selection interface to allow chaining of these method calls
  */
 func (s *MultiSelect) SetMessage(msg string) Selection {
-	s.Message = msg
+	s.message = msg
 	return s
+}
+
+/*
+DisplayMessage is a method to set the prompt message for a selection
+This returns a Selection interface to allow chaining of these method calls
+ */
+func (s *MultiSelect) DisplayMessage() string {
+	return s.message
 }
 
 /*
@@ -81,8 +144,16 @@ SetHelp is a method to set the prompt help message for a selection
 This returns a Selection interface to allow chaining of these method calls
  */
 func (s *MultiSelect) SetHelp(help string) Selection {
-	s.Help = help
+	s.help = help
 	return s
+}
+
+/*
+SetHelp is a method to set the prompt help message for a selection
+This returns a Selection interface to allow chaining of these method calls
+ */
+func (s *MultiSelect) DisplayHelp() string {
+	return s.help
 }
 
 /*
@@ -90,8 +161,16 @@ SetFilterMessage is a method to set the prompt filter message for a selection
 This returns a Selection interface to allow chaining of these method calls
  */
 func (s *MultiSelect) SetFilterMessage(msg string) Selection {
-	s.FilterMessage = msg
+	s.filterMessage = msg
 	return s
+}
+
+/*
+SetFilterMessage is a method to set the prompt filter message for a selection
+This returns a Selection interface to allow chaining of these method calls
+ */
+func (s *MultiSelect) DisplayFilterMessage() string {
+	return s.filterMessage
 }
 
 /*
@@ -99,7 +178,7 @@ SetVimMode is a method to turn on or off VimMode
 This returns a Selection interface to allow chaining of these method calls
  */
 func (s *MultiSelect) SetVimMode(vimMode bool) Selection {
-	s.VimMode = vimMode
+	s.vimMode = vimMode
 	return s
 }
 
@@ -108,14 +187,14 @@ SetVimMode is a method to turn on or off VimMode
 This returns a Selection interface to allow chaining of these method calls
  */
 func (s *MultiSelect) SetPageSize(pageSize int) Selection {
-	s.PageSize = pageSize
+	s.pageSize = pageSize
 	return s
 }
 
 
 // data available to the templates when processing
 type MultiSelectTemplateData struct {
-	MultiSelect
+	*MultiSelect
 	Answer        Options
 	ShowAnswer    bool
 	Checked       map[string]bool
@@ -124,32 +203,12 @@ type MultiSelectTemplateData struct {
 	PageEntries   Options
 }
 
-var MultiSelectQuestionTemplate = `
-{{- if .ShowHelp }}{{- color "cyan"}}{{ HelpIcon }} {{ .Help }}{{color "reset"}}{{"\n"}}{{end}}
-{{- color "green+hb"}}{{ QuestionIcon }} {{color "reset"}}
-{{- color "default+hb"}}{{ .Message }}{{ .FilterMessage }}{{color "reset"}}
-{{- if .ShowAnswer}} {{color "cyan"}} 
-	{{- range $ix, $answer := .Answer}}
-		{{- if ne $ix 0 }}{{- ", "}}{{- end}}
-		{{- $answer.Display }}
-	{{- end}}{{- color "reset"}}{{- "\n"}}
-{{- else }}
-  	{{- "  "}}{{- color "cyan"}}[Use arrows to move, type to filter{{- if and .Help (not .ShowHelp)}}, {{ HelpInputRune }} for more help{{end}}]{{color "reset"}}
-  	{{- "\n"}}
-  	{{- range $ix, $option := .PageEntries}}
-    	{{- if eq $ix $.SelectedIndex}}{{color "cyan"}}{{ SelectFocusIcon }}{{color "reset"}}{{else}} {{end}}
-    	{{- if index $.Checked $option.Display}}{{color "green"}} {{ MarkedOptionIcon }} {{else}}{{color "default+hb"}} {{ UnmarkedOptionIcon }} {{end}}
-    	{{- color "reset"}}
-    	{{- " "}}{{$option.Display}}{{"\n"}}
-  	{{- end}}
-{{- end}}`
-
 // OnChange is called on every keypress.
 func (m *MultiSelect) OnChange(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool) {
 	options := m.filterOptions()
 	oldFilter := m.filter
 
-	if key == terminal.KeyArrowUp || (m.VimMode && key == 'k') {
+	if key == terminal.KeyArrowUp || (m.vimMode && key == 'k') {
 		// if we are at the top of the list
 		if m.selectedIndex == 0 {
 			// go to the bottom
@@ -158,7 +217,7 @@ func (m *MultiSelect) OnChange(line []rune, pos int, key rune) (newLine []rune, 
 			// decrement the selected index
 			m.selectedIndex--
 		}
-	} else if key == terminal.KeyArrowDown || (m.VimMode && key == 'j') {
+	} else if key == terminal.KeyArrowDown || (m.vimMode && key == 'j') {
 		// if we are at the bottom of the list
 		if m.selectedIndex == len(options)-1 {
 			// start at the top
@@ -179,10 +238,10 @@ func (m *MultiSelect) OnChange(line []rune, pos int, key rune) (newLine []rune, 
 			}
 		}
 		// only show the help message if we have one to show
-	} else if key == core.HelpInputRune && m.Help != "" {
+	} else if key == core.HelpInputRune && m.help != "" {
 		m.showingHelp = true
 	} else if key == terminal.KeyEscape {
-		m.VimMode = !m.VimMode
+		m.vimMode = !m.vimMode
 	} else if key == terminal.KeyDeleteWord || key == terminal.KeyDeleteLine {
 		m.filter = ""
 	} else if key == terminal.KeyDelete || key == terminal.KeyBackspace {
@@ -191,12 +250,11 @@ func (m *MultiSelect) OnChange(line []rune, pos int, key rune) (newLine []rune, 
 		}
 	} else if key >= terminal.KeySpace {
 		m.filter += string(key)
-		m.VimMode = false
 	}
 
-	m.FilterMessage = ""
+	m.filterMessage = ""
 	if m.filter != "" {
-		m.FilterMessage = " " + m.filter
+		m.filterMessage = " " + m.filter
 	}
 	if oldFilter != m.filter {
 		// filter changed
@@ -213,9 +271,9 @@ func (m *MultiSelect) OnChange(line []rune, pos int, key rune) (newLine []rune, 
 
 	// render the options
 	m.Render(
-		MultiSelectQuestionTemplate,
+		m.tmpl,
 		MultiSelectTemplateData{
-			MultiSelect:   *m,
+			MultiSelect:   m,
 			SelectedIndex: idx,
 			Checked:       m.checked,
 			ShowHelp:      m.showingHelp,
@@ -231,9 +289,9 @@ func (m *MultiSelect) Prompt() (interface{}, error) {
 	// compute the default state
 	m.checked = make(map[string]bool)
 	// if there is a default
-	if len(m.Default) > 0 {
-		for _, dflt := range m.Default {
-			for _, opt := range m.Options {
+	if len(m.defaultValue) > 0 {
+		for _, dflt := range m.defaultValue {
+			for _, opt := range m.options {
 				// if the option correponds to the default
 				if opt == dflt {
 					// we found our initial value
@@ -246,13 +304,13 @@ func (m *MultiSelect) Prompt() (interface{}, error) {
 	}
 
 	// if there are no options to render
-	if len(m.Options) == 0 {
+	if len(m.options) == 0 {
 		// we failed
 		return "", errors.New("please provide options to select from")
 	}
 
 	// paginate the options
-	opts, idx := m.Paginate(m.Options)
+	opts, idx := m.Paginate(m.options)
 
 	// hide the cursor
 	terminal.CursorHide()
@@ -262,9 +320,9 @@ func (m *MultiSelect) Prompt() (interface{}, error) {
 
 	// ask the question
 	err := m.Render(
-		MultiSelectQuestionTemplate,
+		m.tmpl,
 		MultiSelectTemplateData{
-			MultiSelect:   *m,
+			MultiSelect:   m,
 			SelectedIndex: idx,
 			Checked:       m.checked,
 			PageEntries:   opts,
@@ -293,10 +351,10 @@ func (m *MultiSelect) Prompt() (interface{}, error) {
 		m.OnChange(nil, 0, r)
 	}
 	m.filter = ""
-	m.FilterMessage = ""
+	m.filterMessage = ""
 
 	answers := make(Options, 0)
-	for _, option := range m.Options {
+	for _, option := range m.options {
 		if val, ok := m.checked[option.Display]; ok && val {
 			answers = append(answers, option)
 		}
@@ -309,9 +367,9 @@ func (m *MultiSelect) Prompt() (interface{}, error) {
 func (m *MultiSelect) Cleanup(val interface{}) error {
 	// execute the output summary template with the answer
 	return m.Render(
-		MultiSelectQuestionTemplate,
+		m.tmpl,
 		MultiSelectTemplateData{
-			MultiSelect:   *m,
+			MultiSelect:   m,
 			SelectedIndex: m.selectedIndex,
 			Checked:       m.checked,
 			Answer:        val.(Options),

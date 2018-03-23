@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/AlecAivazis/survey.v1/core"
+	"github.com/djgilcrease/survey/core"
 	"gopkg.in/AlecAivazis/survey.v1/terminal"
 )
 
@@ -17,17 +17,17 @@ func init() {
 func TestSelectRender(t *testing.T) {
 	prompt := NewSingleSelect()
 	prompt.SetMessage("Pick your word:").
-		AddOption("foo", nil, false).
-		AddOption("bar", nil, false).
-		AddOption("baz", nil, true).
-		AddOption("buz", nil, false)
+		AddStringOption("foo", false).
+		AddStringOption("bar", false).
+		AddStringOption("baz", true).
+		AddStringOption("buz", false)
 
 	helpfulPrompt := NewSingleSelect()
 	helpfulPrompt.SetMessage("Pick your word:").
-		AddOption("foo", nil, false).
-		AddOption("bar", nil, false).
-		AddOption("baz", nil, true).
-		AddOption("buz", nil, false).SetHelp("This is helpful")
+		AddStringOption("foo", false).
+		AddStringOption("bar", false).
+		AddStringOption("baz", true).
+		AddStringOption("buz", false).SetHelp("This is helpful")
 
 	tests := []struct {
 		title    string
@@ -38,7 +38,7 @@ func TestSelectRender(t *testing.T) {
 		{
 			"Test Select question output",
 			prompt,
-			SelectTemplateData{SelectedIndex: 2, PageEntries: prompt.Options},
+			SelectTemplateData{SelectedIndex: 2, PageEntries: prompt.options},
 			`? Pick your word:  [Use arrows to move, type to filter]
   foo
   bar
@@ -49,13 +49,13 @@ func TestSelectRender(t *testing.T) {
 		{
 			"Test Select answer output",
 			prompt,
-			SelectTemplateData{Answer: prompt.Options[3], ShowAnswer: true, PageEntries: prompt.Options},
+			SelectTemplateData{Answer: prompt.options[3], ShowAnswer: true, PageEntries: prompt.options},
 			"? Pick your word: buz\n",
 		},
 		{
 			"Test Select question output with help hidden",
 			helpfulPrompt,
-			SelectTemplateData{SelectedIndex: 2, PageEntries: prompt.Options},
+			SelectTemplateData{SelectedIndex: 2, PageEntries: prompt.options},
 			`? Pick your word:  [Use arrows to move, type to filter, ? for more help]
   foo
   bar
@@ -66,7 +66,7 @@ func TestSelectRender(t *testing.T) {
 		{
 			"Test Select question output with help shown",
 			helpfulPrompt,
-			SelectTemplateData{SelectedIndex: 2, ShowHelp: true, PageEntries: prompt.Options},
+			SelectTemplateData{SelectedIndex: 2, ShowHelp: true, PageEntries: prompt.options},
 			`ⓘ This is helpful
 ? Pick your word:  [Use arrows to move, type to filter]
   foo
@@ -82,9 +82,9 @@ func TestSelectRender(t *testing.T) {
 
 	for _, test := range tests {
 		outputBuffer.Reset()
-		test.data.Select = *test.prompt
+		test.data.Select = test.prompt
 		err := test.prompt.Render(
-			SelectQuestionTemplate,
+			test.prompt.tmpl,
 			test.data,
 		)
 		assert.Nil(t, err, test.title)
@@ -120,7 +120,7 @@ func TestSelectInterfaceValues(t *testing.T) {
 		{
 			"Test Select question output",
 			prompt,
-			SelectTemplateData{SelectedIndex: 2, PageEntries: prompt.Options},
+			SelectTemplateData{SelectedIndex: 2, PageEntries: prompt.options},
 			`? Pick your word:  [Use arrows to move, type to filter]
   foo
   bar
@@ -131,13 +131,13 @@ func TestSelectInterfaceValues(t *testing.T) {
 		{
 			"Test Select answer output",
 			prompt,
-			SelectTemplateData{Answer: prompt.Options[3], ShowAnswer: true, PageEntries: prompt.Options},
+			SelectTemplateData{Answer: prompt.options[3], ShowAnswer: true, PageEntries: prompt.options},
 			"? Pick your word: buz\n",
 		},
 		{
 			"Test Select question output with help hidden",
 			helpfulPrompt,
-			SelectTemplateData{SelectedIndex: 2, PageEntries: prompt.Options},
+			SelectTemplateData{SelectedIndex: 2, PageEntries: prompt.options},
 			`? Pick your word:  [Use arrows to move, type to filter, ? for more help]
   foo
   bar
@@ -148,7 +148,7 @@ func TestSelectInterfaceValues(t *testing.T) {
 		{
 			"Test Select question output with help shown",
 			helpfulPrompt,
-			SelectTemplateData{SelectedIndex: 2, ShowHelp: true, PageEntries: prompt.Options},
+			SelectTemplateData{SelectedIndex: 2, ShowHelp: true, PageEntries: prompt.options},
 			`ⓘ This is helpful
 ? Pick your word:  [Use arrows to move, type to filter]
   foo
@@ -164,9 +164,9 @@ func TestSelectInterfaceValues(t *testing.T) {
 
 	for _, test := range tests {
 		outputBuffer.Reset()
-		test.data.Select = *test.prompt
+		test.data.Select = test.prompt
 		err := test.prompt.Render(
-			SelectQuestionTemplate,
+			test.prompt.tmpl,
 			test.data,
 		)
 		assert.Nil(t, err, test.title)
@@ -177,18 +177,18 @@ func TestSelectInterfaceValues(t *testing.T) {
 func TestSelectionPagination_tooFew(t *testing.T) {
 	prompt := NewSingleSelect()
 	prompt.SetMessage("Pick your word:").
-		AddOption("choice1", nil, false).
-		AddOption("choice2", nil, false).
-		AddOption("choice3", nil, false).
+		AddStringOption("choice1", false).
+		AddStringOption("choice2", false).
+		AddStringOption("choice3", false).
 		SetPageSize(4)
 	// the current selection
 	prompt.selectedIndex = 3
 
 	// compute the page info
-	page, idx := prompt.Paginate(prompt.Options)
+	page, idx := prompt.Paginate(prompt.options)
 
 	// make sure we see the full list of options
-	assert.Equal(t, prompt.Options, page)
+	assert.Equal(t, prompt.options, page)
 	// with the second index highlighted (no change)
 	assert.Equal(t, 3, idx)
 }
@@ -196,21 +196,21 @@ func TestSelectionPagination_tooFew(t *testing.T) {
 func TestSelectionPagination_firstHalf(t *testing.T) {
 	prompt := NewSingleSelect()
 	prompt.SetMessage("Pick your word:").
-		AddOption("choice1", nil, false).
-		AddOption("choice2", nil, false).
-		AddOption("choice3", nil, false).
-		AddOption("choice4", nil, false).
-		AddOption("choice5", nil, false).
-		AddOption("choice6", nil, false).
+		AddStringOption("choice1", false).
+		AddStringOption("choice2", false).
+		AddStringOption("choice3", false).
+		AddStringOption("choice4", false).
+		AddStringOption("choice5", false).
+		AddStringOption("choice6", false).
 		SetPageSize(4)
 	// the current selection
 	prompt.selectedIndex = 2
 
 	// compute the page info
-	page, idx := prompt.Paginate(prompt.Options)
+	page, idx := prompt.Paginate(prompt.options)
 
 	// we should see the first three options
-	assert.Equal(t, prompt.Options[0:4], page)
+	assert.Equal(t, prompt.options[0:4], page)
 	// with the second index highlighted
 	assert.Equal(t, 2, idx)
 }
@@ -218,20 +218,20 @@ func TestSelectionPagination_firstHalf(t *testing.T) {
 func TestSelectionPagination_middle(t *testing.T) {
 	prompt := NewSingleSelect()
 	prompt.SetMessage("Pick your word:").
-		AddOption("choice1", nil, false).
-		AddOption("choice2", nil, false).
-		AddOption("choice3", nil, false).
-		AddOption("choice4", nil, false).
-		AddOption("choice5", nil, false).
+		AddStringOption("choice1", false).
+		AddStringOption("choice2", false).
+		AddStringOption("choice3", false).
+		AddStringOption("choice4", false).
+		AddStringOption("choice5", false).
 		SetPageSize(2)
 	// the current selection
 	prompt.selectedIndex = 3
 
 	// compute the page info
-	page, idx := prompt.Paginate(prompt.Options)
+	page, idx := prompt.Paginate(prompt.options)
 
 	// we should see the first three options
-	assert.Equal(t, prompt.Options[2:4], page)
+	assert.Equal(t, prompt.options[2:4], page)
 	// with the second index highlighted
 	assert.Equal(t, 1, idx)
 }
@@ -239,20 +239,20 @@ func TestSelectionPagination_middle(t *testing.T) {
 func TestSelectionPagination_lastHalf(t *testing.T) {
 	prompt := NewSingleSelect()
 	prompt.SetMessage("Pick your word:").
-		AddOption("choice1", nil, false).
-		AddOption("choice2", nil, false).
-		AddOption("choice3", nil, false).
-		AddOption("choice4", nil, false).
-		AddOption("choice5", nil, false).
+		AddStringOption("choice1", false).
+		AddStringOption("choice2", false).
+		AddStringOption("choice3", false).
+		AddStringOption("choice4", false).
+		AddStringOption("choice5", false).
 		SetPageSize(3)
 	// the current selection
 	prompt.selectedIndex = 4
 
 	// compute the page info
-	page, idx := prompt.Paginate(prompt.Options)
+	page, idx := prompt.Paginate(prompt.options)
 
 	// we should see the last three options
-	assert.Equal(t, prompt.Options[2:5], page)
+	assert.Equal(t, prompt.options[2:5], page)
 	// we should be at the bottom of the list
 	assert.Equal(t, 2, idx)
 }

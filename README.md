@@ -314,7 +314,7 @@ looks for by setting the `HelpInputRune` variable in `survey/core`:
 ```golang
 import (
     "gopkg.in/AlecAivazis/survey.v1"
-    surveyCore "gopkg.in/AlecAivazis/survey.v1/core"
+    surveyCore "github.com/djgilcrease/survey/core"
 )
 
 number := ""

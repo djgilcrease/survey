@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/AlecAivazis/survey.v1/core"
+	"github.com/djgilcrease/survey/core"
 	"gopkg.in/AlecAivazis/survey.v1/terminal"
 )
 
@@ -18,50 +18,50 @@ func TestInputRender(t *testing.T) {
 
 	tests := []struct {
 		title    string
-		prompt   Input
+		prompt   Prompt
 		data     InputTemplateData
 		expected string
 	}{
 		{
 			"Test Input question output without default",
-			Input{Message: "What is your favorite month:"},
+			NewInput().SetMessage("What is your favorite month:"),
 			InputTemplateData{},
 			"? What is your favorite month: ",
 		},
 		{
 			"Test Input question output with default",
-			Input{Message: "What is your favorite month:", Default: "April"},
+			NewInput().SetMessage("What is your favorite month:").SetDefault("April"),
 			InputTemplateData{},
 			"? What is your favorite month: (April) ",
 		},
 		{
 			"Test Input answer output",
-			Input{Message: "What is your favorite month:"},
+			NewInput().SetMessage("What is your favorite month:"),
 			InputTemplateData{Answer: "October", ShowAnswer: true},
 			"? What is your favorite month: October\n",
 		},
 		{
 			"Test Input question output without default but with help hidden",
-			Input{Message: "What is your favorite month:", Help: "This is helpful"},
+			NewInput().SetMessage("What is your favorite month:").SetHelp("This is helpful"),
 			InputTemplateData{},
 			"? What is your favorite month: [? for help] ",
 		},
 		{
 			"Test Input question output with default and with help hidden",
-			Input{Message: "What is your favorite month:", Default: "April", Help: "This is helpful"},
+			NewInput().SetMessage("What is your favorite month:").SetDefault("April").SetHelp("This is helpful"),
 			InputTemplateData{},
 			"? What is your favorite month: [? for help] (April) ",
 		},
 		{
 			"Test Input question output without default but with help shown",
-			Input{Message: "What is your favorite month:", Help: "This is helpful"},
+			NewInput().SetMessage("What is your favorite month:").SetHelp("This is helpful"),
 			InputTemplateData{ShowHelp: true},
 			`ⓘ This is helpful
 ? What is your favorite month: `,
 		},
 		{
 			"Test Input question output with default and with help shown",
-			Input{Message: "What is your favorite month:", Default: "April", Help: "This is helpful"},
+			NewInput().SetMessage("What is your favorite month:").SetDefault("April").SetHelp("This is helpful"),
 			InputTemplateData{ShowHelp: true},
 			`ⓘ This is helpful
 ? What is your favorite month: (April) `,
@@ -73,9 +73,9 @@ func TestInputRender(t *testing.T) {
 
 	for _, test := range tests {
 		outputBuffer.Reset()
-		test.data.Input = test.prompt
-		err := test.prompt.Render(
-			InputQuestionTemplate,
+		test.data.Input = test.prompt.(*Input)
+		err := test.data.Render(
+			test.data.tmpl,
 			test.data,
 		)
 		assert.Nil(t, err, test.title)
