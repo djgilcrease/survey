@@ -62,7 +62,7 @@ func TestConfirmRender(t *testing.T) {
 		outputBuffer.Reset()
 		test.data.Confirm = test.prompt
 		err := test.prompt.Render(
-			ConfirmQuestionTemplate,
+			DefaultConfirmQuestionTemplate,
 			test.data,
 		)
 		assert.Nil(t, err, test.title)

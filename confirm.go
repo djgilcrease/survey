@@ -12,29 +12,100 @@ import (
 // Confirm is a regular text input that accept yes/no answers. Response type is a bool.
 type Confirm struct {
 	core.Renderer
-	Message string
-	Default bool
-	Help    string
+	message string
+	defaultValue bool
+	help    string
+	tmpl string
 }
 
 // data available to the templates when processing
 type ConfirmTemplateData struct {
-	Confirm
+	*Confirm
 	Answer   string
 	ShowHelp bool
 }
 
 // Templates with Color formatting. See Documentation: https://github.com/mgutz/ansi#style-format
-var ConfirmQuestionTemplate = `
+var DefaultConfirmQuestionTemplate = `
 {{- if .ShowHelp }}{{- color "cyan"}}{{ HelpIcon }} {{ .Help }}{{color "reset"}}{{"\n"}}{{end}}
 {{- color "green+hb"}}{{ QuestionIcon }} {{color "reset"}}
-{{- color "default+hb"}}{{ .Message }} {{color "reset"}}
+{{- color "default+hb"}}{{ .DisplayMessage }} {{color "reset"}}
 {{- if .Answer}}
   {{- color "cyan"}}{{.Answer}}{{color "reset"}}{{"\n"}}
 {{- else }}
   {{- if and .Help (not .ShowHelp)}}{{color "cyan"}}[{{ HelpInputRune }} for help]{{color "reset"}} {{end}}
-  {{- color "white"}}{{if .Default}}(Y/n) {{else}}(y/N) {{end}}{{color "reset"}}
+  {{- color "white"}}{{ .DisplayDefault }}{{color "reset"}}
 {{- end}}`
+
+func NewConfirm() *Confirm {
+	return &Confirm{
+		tmpl: DefaultConfirmQuestionTemplate,
+	}
+}
+
+
+/*
+SetMessage is a method to set the prompt message for a selection
+This returns a Selection interface to allow chaining of these method calls
+ */
+func (i *Confirm) SetTemplate(tmpl string) Defaulter {
+	i.tmpl = tmpl
+	return i
+}
+
+/*
+SetMessage is a method to set the prompt message for a selection
+This returns a Selection interface to allow chaining of these method calls
+ */
+func (i *Confirm) SetMessage(msg string) Defaulter {
+	i.message = msg
+	return i
+}
+
+/*
+DisplayMessage is a method to set the prompt message for a selection
+This returns a Selection interface to allow chaining of these method calls
+ */
+func (i *Confirm) DisplayMessage() string {
+	return i.message
+}
+
+/*
+SetHelp is a method to set the prompt help message for a selection
+This returns a Selection interface to allow chaining of these method calls
+ */
+func (i *Confirm) SetHelp(help string) Defaulter {
+	i.help = help
+	return i
+}
+
+/*
+SetHelp is a method to set the prompt help message for a selection
+This returns a Selection interface to allow chaining of these method calls
+ */
+func (i *Confirm) DisplayHelp() string {
+	return i.help
+}
+
+/*
+SetMessage is a method to set the prompt message for a selection
+This returns a Selection interface to allow chaining of these method calls
+ */
+func (i *Confirm) SetDefault(value interface{}) Defaulter {
+	i.defaultValue = value.(bool)
+	return i
+}
+
+/*
+DisplayMessage is a method to set the prompt message for a selection
+This returns a Selection interface to allow chaining of these method calls
+ */
+func (i *Confirm) DisplayDefault() string {
+	if !i.defaultValue {
+		return "(y/N)"
+	}
+	return "(Y/n)"
+}
 
 // the regex for answers
 var (
@@ -74,7 +145,7 @@ func (c *Confirm) getBool(showHelp bool) (bool, error) {
 			answer = c.Default
 		case val == string(core.HelpInputRune) && c.Help != "":
 			err := c.Render(
-				ConfirmQuestionTemplate,
+				DefaultConfirmQuestionTemplate,
 				ConfirmTemplateData{Confirm: *c, ShowHelp: true},
 			)
 			if err != nil {
@@ -89,7 +160,7 @@ func (c *Confirm) getBool(showHelp bool) (bool, error) {
 				return c.Default, err
 			}
 			err := c.Render(
-				ConfirmQuestionTemplate,
+				DefaultConfirmQuestionTemplate,
 				ConfirmTemplateData{Confirm: *c, ShowHelp: showHelp},
 			)
 			if err != nil {
@@ -115,7 +186,7 @@ by a carriage return.
 func (c *Confirm) Prompt() (interface{}, error) {
 	// render the question template
 	err := c.Render(
-		ConfirmQuestionTemplate,
+		DefaultConfirmQuestionTemplate,
 		ConfirmTemplateData{Confirm: *c},
 	)
 	if err != nil {
@@ -132,7 +203,7 @@ func (c *Confirm) Cleanup(val interface{}) error {
 	ans := yesNo(val.(bool))
 	// render the template
 	return c.Render(
-		ConfirmQuestionTemplate,
+		DefaultConfirmQuestionTemplate,
 		ConfirmTemplateData{Confirm: *c, Answer: ans},
 	)
 }
