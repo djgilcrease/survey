@@ -185,13 +185,11 @@ by a carriage return.
 */
 func (c *Confirm) Prompt() (interface{}, error) {
 	// render the question template
-	println("PROMPT!")
 	err := c.Render(
 		DefaultConfirmQuestionTemplate,
 		ConfirmTemplateData{Confirm: c},
 	)
 	if err != nil {
-		println(err.Error())
 		return "", err
 	}
 
