@@ -27,13 +27,13 @@ type ConfirmTemplateData struct {
 
 // Templates with Color formatting. See Documentation: https://github.com/mgutz/ansi#style-format
 var DefaultConfirmQuestionTemplate = `
-{{- if .ShowHelp }}{{- color "cyan"}}{{ HelpIcon }} {{ .Help }}{{color "reset"}}{{"\n"}}{{end}}
+{{- if .ShowHelp }}{{- color "cyan"}}{{ HelpIcon }} {{ .DisplayHelp }}{{color "reset"}}{{"\n"}}{{end}}
 {{- color "green+hb"}}{{ QuestionIcon }} {{color "reset"}}
 {{- color "default+hb"}}{{ .DisplayMessage }} {{color "reset"}}
 {{- if .Answer}}
   {{- color "cyan"}}{{.Answer}}{{color "reset"}}{{"\n"}}
 {{- else }}
-  {{- if and .Help (not .ShowHelp)}}{{color "cyan"}}[{{ HelpInputRune }} for help]{{color "reset"}} {{end}}
+  {{- if and .DisplayHelp (not .ShowHelp)}}{{color "cyan"}}[{{ HelpInputRune }} for help]{{color "reset"}} {{end}}
   {{- color "white"}}{{ .DisplayDefault }}{{color "reset"}}
 {{- end}}`
 
@@ -142,37 +142,37 @@ func (c *Confirm) getBool(showHelp bool) (bool, error) {
 		case noRx.Match([]byte(val)):
 			answer = false
 		case val == "":
-			answer = c.Default
-		case val == string(core.HelpInputRune) && c.Help != "":
+			answer = c.defaultValue
+		case val == string(core.HelpInputRune) && c.help != "":
 			err := c.Render(
 				DefaultConfirmQuestionTemplate,
-				ConfirmTemplateData{Confirm: *c, ShowHelp: true},
+				ConfirmTemplateData{Confirm: c, ShowHelp: true},
 			)
 			if err != nil {
 				// use the default value and bubble up
-				return c.Default, err
+				return c.defaultValue, err
 			}
 			showHelp = true
 			continue
 		default:
 			// we didnt get a valid answer, so print error and prompt again
 			if err := c.Error(fmt.Errorf("%q is not a valid answer, please try again.", val)); err != nil {
-				return c.Default, err
+				return c.defaultValue, err
 			}
 			err := c.Render(
 				DefaultConfirmQuestionTemplate,
-				ConfirmTemplateData{Confirm: *c, ShowHelp: showHelp},
+				ConfirmTemplateData{Confirm: c, ShowHelp: showHelp},
 			)
 			if err != nil {
 				// use the default value and bubble up
-				return c.Default, err
+				return c.defaultValue, err
 			}
 			continue
 		}
 		return answer, nil
 	}
 	// should not get here
-	return c.Default, nil
+	return c.defaultValue, nil
 }
 
 /*
@@ -185,11 +185,13 @@ by a carriage return.
 */
 func (c *Confirm) Prompt() (interface{}, error) {
 	// render the question template
+	println("PROMPT!")
 	err := c.Render(
 		DefaultConfirmQuestionTemplate,
-		ConfirmTemplateData{Confirm: *c},
+		ConfirmTemplateData{Confirm: c},
 	)
 	if err != nil {
+		println(err.Error())
 		return "", err
 	}
 
@@ -204,6 +206,6 @@ func (c *Confirm) Cleanup(val interface{}) error {
 	// render the template
 	return c.Render(
 		DefaultConfirmQuestionTemplate,
-		ConfirmTemplateData{Confirm: *c, Answer: ans},
+		ConfirmTemplateData{Confirm: c, Answer: ans},
 	)
 }
