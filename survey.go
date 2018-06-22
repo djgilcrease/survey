@@ -2,9 +2,24 @@ package survey
 
 import (
 	"errors"
+	"io"
+	"os"
 
 	"github.com/djgilcrease/survey/core"
+	"gopkg.in/AlecAivazis/survey.v1/terminal"
 )
+
+// PageSize is the default maximum number of items to show in select/multiselect prompts
+var PageSize = 7
+
+// DefaultAskOptions is the default options on ask, using the OS stdio.
+var DefaultAskOptions = AskOptions{
+	Stdio: terminal.Stdio{
+		In:  os.Stdin,
+		Out: os.Stdout,
+		Err: os.Stderr,
+	},
+}
 
 // Validator is a function passed to a Question after a user has provided a response.
 // If the function returns an error, then the user will be prompted again for another
@@ -26,6 +41,29 @@ type Question struct {
 	Transform Transformer
 }
 
+// AskOpt allows setting optional ask options.
+type AskOpt func(options *AskOptions) error
+
+// AskOptions provides additional options on ask.
+type AskOptions struct {
+	Stdio terminal.Stdio
+}
+
+// WithStdio specifies the standard input, output and error files survey
+// interacts with. By default, these are os.Stdin, os.Stdout, and os.Stderr.
+func WithStdio(in terminal.FileReader, out terminal.FileWriter, err io.Writer) AskOpt {
+	return func(options *AskOptions) error {
+		options.Stdio.In = in
+		options.Stdio.Out = out
+		options.Stdio.Err = err
+		return nil
+	}
+}
+
+type wantsStdio interface {
+	WithStdio(terminal.Stdio)
+}
+
 /*
 AskOne performs the prompt for a single prompt and asks for validation if required.
 Response types should be something that can be casted from the response type designated
@@ -39,8 +77,8 @@ in the documentation. For example:
 	survey.AskOne(prompt, &name, nil)
 
 */
-func AskOne(p Prompt, response interface{}, v Validator) error {
-	err := Ask([]*Question{{Prompt: p, Validate: v}}, response)
+func AskOne(p Prompt, response interface{}, v Validator, opts ...AskOpt) error {
+	err := Ask([]*Question{{Prompt: p, Validate: v}}, response, opts...)
 	if err != nil {
 		return err
 	}
@@ -71,7 +109,14 @@ matching name. For example:
 
 	err := survey.Ask(qs, &answers)
 */
-func Ask(qs []*Question, response interface{}) error {
+func Ask(qs []*Question, response interface{}, opts ...AskOpt) error {
+
+	options := DefaultAskOptions
+	for _, opt := range opts {
+		if err := opt(&options); err != nil {
+			return err
+		}
+	}
 
 	// if we weren't passed a place to record the answers
 	if response == nil {
@@ -81,6 +126,11 @@ func Ask(qs []*Question, response interface{}) error {
 
 	// go over every question
 	for _, q := range qs {
+		// If Prompt implements controllable stdio, pass in specified stdio.
+		if p, ok := q.Prompt.(wantsStdio); ok {
+			p.WithStdio(options.Stdio)
+		}
+
 		// grab the user input and save it
 		ans, err := q.Prompt.Prompt()
 		// if there was a problem
@@ -126,21 +176,63 @@ func Ask(qs []*Question, response interface{}) error {
 		}
 
 		// add it to the map
-		switch ans.(type) {
-		case *Option:
-			err = core.WriteAnswer(response, q.Name, ans.(*Option).Value)
-		case Options:
-			err = core.WriteAnswer(response, q.Name, OptionsValues(ans.(Options)))
-		default:
-			err = core.WriteAnswer(response, q.Name, ans)
-		}
-
+		err = core.WriteAnswer(response, q.Name, ans)
 		// if something went wrong
 		if err != nil {
 			return err
 		}
 
 	}
+
 	// return the response
 	return nil
+}
+
+// paginate returns a single page of choices given the page size, the total list of
+// possible choices, and the current selected index in the total list.
+func paginate(page int, choices []string, sel int) ([]string, int) {
+	// the number of elements to show in a single page
+	var pageSize int
+	// if the select has a specific page size
+	if page != 0 {
+		// use the specified one
+		pageSize = page
+		// otherwise the select does not have a page size
+	} else {
+		// use the package default
+		pageSize = PageSize
+	}
+
+	var start, end, cursor int
+
+	if len(choices) < pageSize {
+		// if we dont have enough options to fill a page
+		start = 0
+		end = len(choices)
+		cursor = sel
+
+	} else if sel < pageSize/2 {
+		// if we are in the first half page
+		start = 0
+		end = pageSize
+		cursor = sel
+
+	} else if len(choices)-sel-1 < pageSize/2 {
+		// if we are in the last half page
+		start = len(choices) - pageSize
+		end = len(choices)
+		cursor = sel - start
+
+	} else {
+		// somewhere in the middle
+		above := pageSize / 2
+		below := pageSize - above
+
+		cursor = pageSize / 2
+		start = sel - above
+		end = sel + below
+	}
+
+	// return the subset we care about and the index
+	return choices[start:end], cursor
 }
