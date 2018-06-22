@@ -2,7 +2,6 @@ package survey
 
 import (
 	"errors"
-	"os"
 	"github.com/djgilcrease/survey/core"
 	"gopkg.in/AlecAivazis/survey.v1/terminal"
 )
@@ -312,11 +311,9 @@ func (m *MultiSelect) Prompt() (interface{}, error) {
 	// paginate the options
 	opts, idx := m.Paginate(m.options)
 
-	// hide the cursor
-	terminal.CursorHide()
-
-	// show the cursor when we're done
-	defer terminal.CursorShow()
+	cursor := m.NewCursor()
+	cursor.Hide()       // hide the cursor
+	defer cursor.Show() // show the cursor when we're done
 
 	// ask the question
 	err := m.Render(
@@ -332,7 +329,7 @@ func (m *MultiSelect) Prompt() (interface{}, error) {
 		return "", err
 	}
 
-	rr := terminal.NewRuneReader(os.Stdin)
+	rr := m.NewRuneReader()
 	rr.SetTermMode()
 	defer rr.RestoreTermMode()
 

@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/djgilcrease/survey/core"
 	"gopkg.in/AlecAivazis/survey.v1/terminal"
+	"os"
+	"io"
 )
 
 func init() {
@@ -68,17 +70,22 @@ func TestInputRender(t *testing.T) {
 		},
 	}
 
-	outputBuffer := bytes.NewBufferString("")
-	terminal.Stdout = outputBuffer
-
 	for _, test := range tests {
-		outputBuffer.Reset()
+		r, w, err := os.Pipe()
+		assert.Nil(t, err, test.title)
+
 		test.data.Input = test.prompt.(*Input)
-		err := test.data.Render(
+		test.data.WithStdio(terminal.Stdio{Out: w})
+		err = test.data.Render(
 			test.data.tmpl,
 			test.data,
 		)
 		assert.Nil(t, err, test.title)
-		assert.Equal(t, test.expected, outputBuffer.String(), test.title)
+
+		w.Close()
+		var buf bytes.Buffer
+		io.Copy(&buf, r)
+
+		assert.Contains(t, buf.String(), test.expected, test.title)
 	}
 }

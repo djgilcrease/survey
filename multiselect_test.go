@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/djgilcrease/survey/core"
 	"gopkg.in/AlecAivazis/survey.v1/terminal"
+	"os"
+	"io"
 )
 
 func init() {
@@ -93,18 +95,24 @@ func TestMultiSelectRender(t *testing.T) {
 		},
 	}
 
-	outputBuffer := bytes.NewBufferString("")
-	terminal.Stdout = outputBuffer
 
 	for _, test := range tests {
-		outputBuffer.Reset()
+		r, w, err := os.Pipe()
+		assert.Nil(t, err, test.title)
+
+		test.prompt.WithStdio(terminal.Stdio{Out: w})
 		test.data.MultiSelect = test.prompt
-		err := test.prompt.Render(
+		err = test.prompt.Render(
 			test.prompt.tmpl,
 			test.data,
 		)
 		assert.Nil(t, err, test.title)
-		assert.Equal(t, test.expected, outputBuffer.String(), test.title)
+
+		w.Close()
+		var buf bytes.Buffer
+		io.Copy(&buf, r)
+
+		assert.Contains(t, buf.String(), test.expected, test.title)
 	}
 }
 
@@ -192,17 +200,22 @@ func TestMultiSelectInterfaceValues(t *testing.T) {
 		},
 	}
 
-	outputBuffer := bytes.NewBufferString("")
-	terminal.Stdout = outputBuffer
-
 	for _, test := range tests {
-		outputBuffer.Reset()
+		r, w, err := os.Pipe()
+		assert.Nil(t, err, test.title)
+
+		test.prompt.WithStdio(terminal.Stdio{Out: w})
 		test.data.MultiSelect = test.prompt
-		err := test.prompt.Render(
+		err = test.prompt.Render(
 			test.prompt.tmpl,
 			test.data,
 		)
 		assert.Nil(t, err, test.title)
-		assert.Equal(t, test.expected, outputBuffer.String(), test.title)
+
+		w.Close()
+		var buf bytes.Buffer
+		io.Copy(&buf, r)
+
+		assert.Contains(t, buf.String(), test.expected, test.title)
 	}
 }

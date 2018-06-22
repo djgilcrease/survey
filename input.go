@@ -1,10 +1,7 @@
 package survey
 
 import (
-	"os"
-
 	"github.com/djgilcrease/survey/core"
-	"gopkg.in/AlecAivazis/survey.v1/terminal"
 	"fmt"
 )
 
@@ -125,9 +122,10 @@ func (i *Input) Prompt() (interface{}, error) {
 	}
 
 	// start reading runes from the standard in
-	rr := terminal.NewRuneReader(os.Stdin)
+	rr := i.NewRuneReader()
 	rr.SetTermMode()
 	defer rr.RestoreTermMode()
+	cursor := i.NewCursor()
 
 	line := []rune{}
 	// get the next line
@@ -137,7 +135,7 @@ func (i *Input) Prompt() (interface{}, error) {
 			return string(line), err
 		}
 		// terminal will echo the \n so we need to jump back up one row
-		terminal.CursorPreviousLine(1)
+		cursor.PreviousLine(1)
 
 		if string(line) == string(core.HelpInputRune) && i.help != "" {
 			err = i.Render(

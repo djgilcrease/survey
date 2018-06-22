@@ -5,7 +5,7 @@ import (
 	"gopkg.in/AlecAivazis/survey.v1/tests/util"
 )
 
-var answer = false
+var confirmAnswer = false
 
 var goodTable = []TestUtil.TestTableEntry{
 	{

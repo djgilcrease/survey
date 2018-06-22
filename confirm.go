@@ -2,11 +2,9 @@ package survey
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 
 	"github.com/djgilcrease/survey/core"
-	"gopkg.in/AlecAivazis/survey.v1/terminal"
 )
 
 // Confirm is a regular text input that accept yes/no answers. Response type is a bool.
@@ -34,7 +32,7 @@ var DefaultConfirmQuestionTemplate = `
   {{- color "cyan"}}{{.Answer}}{{color "reset"}}{{"\n"}}
 {{- else }}
   {{- if and .DisplayHelp (not .ShowHelp)}}{{color "cyan"}}[{{ HelpInputRune }} for help]{{color "reset"}} {{end}}
-  {{- color "white"}}{{ .DisplayDefault }}{{color "reset"}}
+  {{- color "white"}}{{ .DisplayDefault }} {{color "reset"}}
 {{- end}}`
 
 func NewConfirm() *Confirm {
@@ -121,9 +119,10 @@ func yesNo(t bool) string {
 }
 
 func (c *Confirm) getBool(showHelp bool) (bool, error) {
-	rr := terminal.NewRuneReader(os.Stdin)
+	rr := c.NewRuneReader()
 	rr.SetTermMode()
 	defer rr.RestoreTermMode()
+	cursor := c.NewCursor()
 	// start waiting for input
 	for {
 		line, err := rr.ReadLine(0)
@@ -131,7 +130,7 @@ func (c *Confirm) getBool(showHelp bool) (bool, error) {
 			return false, err
 		}
 		// move back up a line to compensate for the \n echoed from terminal
-		terminal.CursorPreviousLine(1)
+		cursor.PreviousLine(1)
 		val := string(line)
 
 		// get the answer that matches the
